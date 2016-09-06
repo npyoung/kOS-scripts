@@ -1,0 +1,49 @@
+clearscreen.
+
+// Prepare the ship
+SAS off.
+RCS off.
+lock throttle to 1.
+set target_pitch to 0.
+lock steering to UP + R(0, pitch, -180).
+min_thrust = 0.4.
+g = 9.81.
+lock TWR to MAXTHRUST / (MASS * g).
+
+// Launch
+WHEN MAXTHRUST = 0 THEN {
+    stage.
+    wait 3.
+    return true.
+}
+
+// Limit TWR
+lock throttle to 1.8 * (MASS * g) / MAXTHRUST.
+
+// Start turn
+WHEN ALT:RADAR > 250 THEN {
+    lock target_pitch to 10 * (ALT:RADAR - 250) / (4000 - 250).
+}
+
+WHEN PITCH > 9.5 THEN {
+    lock steering to SRFPROGRADE.
+}
+
+when ALTITUDE > 30000 THEN {
+    lock steering to PROGRADE.
+}
+
+when ETA:APOAPSIS > 45 THEN {
+    set PID to PIDLOOP(0.01, 0.0, 0.0).
+    set PID:SETPOINT to 45.
+    lock THROTTLE to THROTTLE + PID:UPDATE(TIME:SECONDS, ETA:APOAPSIS).
+}
+
+when APOAPSIS > 72500 THEN {
+    lock throttle to 0.
+}
+
+// Coast to Ap
+print "Coasting to Ap".
+
+// Circularize
