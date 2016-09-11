@@ -1,6 +1,6 @@
 // KOS LIB
-// These are informational and convenience functions. They are allow to point
-// but not to burn.
+// These are informational and convenience functions that do not exert any
+// control action in the game.
 
 // Get the ship normal direction
 function normal {
@@ -33,13 +33,6 @@ function clip {
     parameter a. // low
     parameter b. // high
     return min(max(v, a), b).
-}
-
-// Points ship in a direction and waits for ship to realign.
-function point_at {
-    parameter dir.
-    lock steering to dir.
-    wait until vdot(facing:forevector, dir:forevector) >= 0.999 and ship:angularvel:mag * constant:RadToDeg < 0.1.
 }
 
 // Determines the precise burn duration for a given dV.

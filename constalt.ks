@@ -9,7 +9,7 @@ set throttle_target to 0.
 lock throttle to throttle_target.
 
 // Face orbital retrograde.
-point_at(retrograde).
+run point_at(retrograde).
 
 // Throttle to full.
 set throttle_target to 1.

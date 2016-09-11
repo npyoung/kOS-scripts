@@ -10,7 +10,7 @@ if newpe < periapsis {
     set sign to 1.
 }
 
-point_at(sign * normal()).
+run point_at(sign * normal()).
 
 when sign * periapsis > sign * newpe  {
     lock throttle to 0.
