@@ -3,8 +3,6 @@ run once koslib.
 
 // Set up ship
 clearscreen.
-SAS off.
-RCS off.
 set throttle_target to 0.
 lock throttle to throttle_target.
 
@@ -38,5 +36,5 @@ until ship:groundspeed < 20 {
 }
 set throttle_target to 0.
 
-run suicideburn.
+run suicideburn(200, -12).
 run hoverthrust.

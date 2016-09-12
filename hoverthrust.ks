@@ -2,11 +2,11 @@
 run once koslib.
 
 // Fixed parameters
-set v_fast_approach to -18.
+set v_fast_approach to -16.
 set v_slow_approach to -6.
 set v_final_approach to -2.
-set high to 100.
-set low to 10.
+set high to 150.
+set low to 20.
 
 // Set up ship
 clearscreen.
@@ -34,7 +34,7 @@ set throttle_target to (g * mass) / maxthrust.
 print "Locking throttle to: " + throttle_target.
 
 // Transfer to PID control
-set PID to PIDLOOP(0.04, 0.002, 0.04).
+set PID to PIDLOOP(0.04, 0.0, 0.04).
 set vtarget to 0.
 
 on vtarget {
@@ -50,7 +50,7 @@ when clearance < low then {
     set vtarget to v_final_approach.
 }
 
-until verticalspeed > 0 {
+until verticalspeed > 0 or status = "LANDED"{
     set update to PID:UPDATE(TIME:SECONDS, verticalspeed).
     set throttle_target to throttle + update.
     clearscreen.
@@ -58,13 +58,12 @@ until verticalspeed > 0 {
     print "Adjusting thrust by: " + update at (0, 16).
     print "Throttle target is at: " + throttle_target at (0, 17).
     print "Clearance is: " + clearance at (0, 18).
-    wait 0.1.
+    wait 0.01.
 }
 
 lock throttle to 0.
 
 wait until status = "LANDED" and ship:angularvel:mag / 3.14 * 180 < 0.1.
-SAS on.
 print "Touchdown!".
 
 print "Terminating in 5...".
