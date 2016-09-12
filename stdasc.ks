@@ -1,4 +1,5 @@
 // Parameters
+parameter compass is 90.
 parameter dump_stage is false.
 
 // Fixed parameters
@@ -9,7 +10,7 @@ set turn_end to 5000.
 set turn_angle to 15.
 set tta_target to 45.
 set frame_swap_alt to 30000.
-set final_ap to 72500.
+set final_ap to 75000.
 set stage_wait to 3.
 
 // Physical constants
@@ -22,7 +23,7 @@ SAS off.
 RCS off.
 lock bounded_throttle to 1.
 lock throttle to max(min_throttle, min(1, bounded_throttle)).
-lock steering to HEADING(90, 90).
+lock steering to HEADING(compass, 90).
 lock pitch to 90 - VANG(FACING:VECTOR, UP:VECTOR).
 lock TWR to MAXTHRUST / (MASS * g).
 
@@ -67,7 +68,7 @@ lock bounded_throttle to turn_twr * (MASS * g) / (MAXTHRUST + 0.001).
 // Start turn
 wait until ALT:RADAR > turn_start.
 print "Forcing start of turn".
-lock steering to HEADING(90, 90 - turn_angle * (ALT:RADAR - turn_start) / (turn_end - turn_start)).
+lock steering to HEADING(compass, 90 - turn_angle * (ALT:RADAR - turn_start) / (turn_end - turn_start)).
 
 // Go prograde
 wait until pitch < 90 - turn_angle + 0.5.
