@@ -2,6 +2,16 @@
 // These are informational and convenience functions that do not exert any
 // control action in the game.
 
+// Get the ship radial direction
+function radial {
+    return vectorcrossproduct(prograde:vector, antinormal()).
+}
+
+// Get the ship normal direction
+function antiradial {
+    return -1 * radial().
+}
+
 // Get the ship normal direction
 function normal {
     return vectorcrossproduct(prograde:vector, up:vector).
