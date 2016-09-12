@@ -28,9 +28,10 @@ set hang to (node:eta - dob / 2) - 5.
 print "Warping ahead by " + sec2timestr(hang).
 
 if hang > 0 {
-    warpto(time:seconds + hang).
+    set twarpexit to time:seconds + hang.
+    warpto(twarpexit).
 }
-set twarpexit to time:seconds.
+
 wait until time:seconds > twarpexit + 5.
 
 set done to false.
