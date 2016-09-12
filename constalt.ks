@@ -21,9 +21,7 @@ set PID to PIDLOOP(0.0004, 0.0, 0.002).
 set PID:SETPOINT to 0.
 
 set pitch to 90 - vang(facing:vector, up:vector).
-// ship: bearing + 180. doesn't track retro properly.
 lock compass to arccos(vdot(-up:topvector, srfretrograde:vector)) + 180.
-set compass to ship:bearing + 180.
 print "Pitch detected: " + pitch.
 print "Compass detected: " + compass.
 lock steering to heading(compass, pitch).
@@ -41,3 +39,4 @@ until ship:groundspeed < 20 {
 set throttle_target to 0.
 
 run suicideburn.
+run hoverthrust.
