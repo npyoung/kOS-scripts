@@ -1,20 +1,20 @@
+// Parameters
+parameter v_fast_approach is -16.
+
 // Imports
 run once koslib.
 
 // Fixed parameters
-set v_fast_approach to -16.
 set v_slow_approach to -6.
 set v_final_approach to -2.
-set high to 150.
-set low to 20.
+set high to 100.
+set low to 10.
 
 // Set up ship
 clearscreen.
-SAS off.
-RCS off.
 set throttle_target to 0.
 lock throttle to clip(throttle_target, 0, 1).
-lock steering to heading(90, 90).
+run point_at(heading(90, 90)).
 set height to craft_height().
 lock clearance to alt:radar - height.
 print "Craft is " + height + "m tall so clearance is " + clearance + "m".

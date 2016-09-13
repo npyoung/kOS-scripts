@@ -8,7 +8,7 @@ set turn_twr to 1.8.
 set turn_start to 200.
 set turn_end to 5000.
 set turn_angle to 15.
-set tta_target to 45.
+set tta_target to 60.
 set frame_swap_alt to 30000.
 set final_ap to 75000.
 set stage_wait to 3.

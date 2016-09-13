@@ -1,6 +1,6 @@
 // Perform a suicide burn on an airless body.
-// Does not account for steering losses or velocity picked up as a result of
-// hang time added by the burn.
+// Does not account for steering losses, velocity picked up as a result of
+// hang time added by the burn, or deceleration during the burn.
 
 // Parameters
 parameter margin is 2.

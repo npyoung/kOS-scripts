@@ -4,4 +4,4 @@
 parameter dir.
 
 lock steering to dir.
-wait until vdot(facing:forevector, dir:forevector) >= 0.999 and ship:angularvel:mag * constant:RadToDeg < 0.1.
+wait until vdot(facing:forevector, dir:forevector) >= 0.99 and ship:angularvel:mag * constant:RadToDeg < 0.1.
