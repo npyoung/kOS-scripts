@@ -4,18 +4,17 @@ parameter dump_stage is false.
 
 // Fixed parameters
 set min_throttle to 0.4.
-set turn_twr to 1.8.
+set turn_twr to 1.75.
 set turn_start to 200.
-set turn_end to 5000.
+set turn_end to 4000.
 set turn_angle to 15.
-set tta_target to 60.
+set tta_target to 45.
 set frame_swap_alt to 30000.
 set final_ap to 75000.
 set stage_wait to 3.
 
 // Physical constants
 set g to 9.81.
-set atmo_height to 70000.
 
 // Prepare the ship
 clearscreen.
@@ -82,7 +81,7 @@ when ALTITUDE > frame_swap_alt THEN {
 }
 
 // Switch from TWR limiting to time-to-Ap limting
-wait until ETA:APOAPSIS > tta_target.
+wait until ETA:APOAPSIS > tta_target or APOAPSIS > final_ap.
 print "TTAp target reached; throttling down".
 set PID to PIDLOOP(0.02, 0.0, 0.02).
 set PID:SETPOINT to tta_target.
@@ -98,7 +97,7 @@ lock throttle to 0.
 set warpmode to "PHYSICS".
 set warp to 4.
 print "Coasting to Ap".
-wait until ALTITUDE > atmo_height.
+wait until ALTITUDE > body:atm:height.
 set warpmode to "RAILS".
 set warp to 0.
 
