@@ -39,5 +39,5 @@ until ship:groundspeed < end_hv {
 }
 set throttle_target to 0.
 
-run suicideburn(200, -12).
+run suicideburn(100, 0).
 run hoverthrust(-16).

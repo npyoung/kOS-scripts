@@ -23,15 +23,15 @@ lock steering to srfretrograde.
 // When will we hit the ground? Account for margin here.
 function impact_time {
     parameter margin is 0.
-    set guess_time to time:seconds.
-    set terrain_alt to 0.
-    set orbit_alt to altitude.
+    local guess_time is time:seconds.
+    local terrain_alt is 0.
+    local orbit_alt is altitude.
 
     // Forward search.
     until terrain_alt > orbit_alt {
         clearscreen.
         set guess_time to guess_time + forward_search_resolution.
-        print "Checking t+" + (guess_time - time:seconds) at (0, 15).
+        print "Checking t+" + (guess_time - time:seconds) at (0, 0).
         set terrain_alt to body:geopositionof(positionat(ship, guess_time)):terrainheight + margin.
         set orbit_alt to body:altitudeof(positionat(ship, guess_time)).
     }
@@ -40,12 +40,12 @@ function impact_time {
     until terrain_alt < orbit_alt {
         clearscreen.
         set guess_time to guess_time - backtracking_resolution.
-        print "Checking t+" + (guess_time - time:seconds) at (0, 15).
+        print "Checking t+" + (guess_time - time:seconds) at (0, 0).
         set terrain_alt to body:geopositionof(positionat(ship, guess_time)):terrainheight + margin.
         set orbit_alt to body:altitudeof(positionat(ship, guess_time)).
     }
 
-    print "Final t+" + (guess_time - time:seconds) at (0,16).
+    print "Final t+" + (guess_time - time:seconds) at (0,1).
     return guess_time.
 }
 
@@ -63,7 +63,7 @@ set burn_start to impact_t - burn_t.
 lock steering to srfretrograde.
 until time:seconds > burn_start {
     clearscreen.
-    print "Burning in: " + sec2timestr(burn_start - time:seconds) at (0, 15).
+    print "Burning in: " + sec2timestr(burn_start - time:seconds) at (0, 0).
 }
 
 // Burn until final velocity reached.
