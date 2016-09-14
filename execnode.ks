@@ -1,9 +1,6 @@
 // Imports
 run once koslib.
 
-// Physical constants
-set g to 9.81.
-
 // Prepare the ship
 clearscreen.
 SAS off.
@@ -30,9 +27,8 @@ print "Warping ahead by " + sec2timestr(hang).
 if hang > 0 {
     set twarpexit to time:seconds + hang.
     warpto(twarpexit).
+    wait until time:seconds > twarpexit + 5.
 }
-
-wait until time:seconds > twarpexit + 5.
 
 set done to false.
 set dv0 to node:deltav.
