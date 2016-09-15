@@ -4,27 +4,30 @@ parameter dump_stage is true.
 
 // Fixed parameters
 set min_throttle to 0.4.
-set turn_twr to 1.75.
+set g to 9.81.
+set glimit to 2.5.
+set turn_g to 1.75.
 set turn_start to 200.
 set turn_end to 4000.
 set turn_angle to 15.
-set tta_target to 45.
+set tta_target to 60.
 set frame_swap_alt to 30000.
 set final_ap to 75000.
 set stage_wait to 3.
-
-// Physical constants
-set g to 9.81.
 
 // Prepare the ship
 clearscreen.
 SAS off.
 RCS off.
+
+// Bounded throttle obeys G-limit and min_throttle
+lock max_throttle to min(1, glimit * g / (ship:availablethrust / mass)).
 lock bounded_throttle to 1.
-lock throttle to max(min_throttle, min(1, bounded_throttle)).
+lock throttle to max(min_throttle, min(max_throttle, bounded_throttle)).
+
+// Point up
 lock steering to HEADING(compass, 90).
 lock pitch to 90 - VANG(FACING:VECTOR, UP:VECTOR).
-lock TWR to MAXTHRUST / (MASS * g).
 
 // Autostaging logic
 function anyflameout {
@@ -61,8 +64,8 @@ when anyflameout() then {
     return true.
 }
 
-// Limit TWR
-lock bounded_throttle to turn_twr * (MASS * g) / (MAXTHRUST + 0.001).
+// Limit early acceleration
+lock bounded_throttle to turn_g * (mass * g) / ship:availablethrust.
 
 // Start turn
 wait until ALT:RADAR > turn_start.
@@ -80,15 +83,14 @@ when ALTITUDE > frame_swap_alt THEN {
     print "Swapping to orbital prograde".
 }
 
-// Switch from TWR limiting to time-to-Ap limting
-wait until ETA:APOAPSIS > tta_target or APOAPSIS > final_ap.
-print "TTAp target reached; throttling down".
-set PID to PIDLOOP(0.02, 0.0, 0.02).
+// Switch from TWR limiting to time-to-Ap targeting
+print "Leaving acceleration-targeting mode".
+print "Begin time-to-Ap targeting mode".
+set PID to PIDLOOP(0.02, 0.0, 0.04).
 set PID:SETPOINT to tta_target.
 until APOAPSIS > final_ap {
-    set throttle_target to throttle + PID:UPDATE(TIME:SECONDS, ETA:APOAPSIS).
-    print "throttle target is " + throttle_target at (0, 15).
-    lock bounded_throttle to throttle_target.
+    set bounded_throttle to throttle + PID:UPDATE(TIME:SECONDS, ETA:APOAPSIS).
+    print "throttle target is " + bounded_throttle at (0, 15).
     wait 0.1.
 }
 lock throttle to 0.
