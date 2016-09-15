@@ -1,6 +1,6 @@
 // Parameters
 parameter compass is 90.
-parameter dump_stage is false.
+parameter dump_stage is true.
 
 // Fixed parameters
 set min_throttle to 0.4.

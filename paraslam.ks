@@ -18,6 +18,11 @@ WHEN (NOT CHUTESSAFE) THEN {
     RETURN (NOT CHUTES).
 }
 
+// Drop gear when low enough
+when alt:radar < 500 then {
+    gear on.
+}
+
 // Set up PID
 set PID to PIDLOOP(0.04, 0.0, 0.04).
 set PID:SETPOINT to vhold.
