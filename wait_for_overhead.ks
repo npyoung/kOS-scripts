@@ -11,25 +11,28 @@ set forward_search_resolution to 30.
 set backtracking_resolution to 1.
 
 // Make sure we're landed
-if status <> "LANDED" {
-    print "You need to be on the ground to use this".
-    return false.
-}
+//if status <> "LANDED" {
+//    print "You need to be on the ground to use this".
+//}
 clearscreen.
 
 // When will the target be overhead hit the ground?
+function posang {
+    parameter a.
+    return mod(a + 360, 360).
+}
+
 function overhead_time {
     local guess_time is time:seconds.
-    local our_lng is body:geopositionof(positionat(ship, guess_time)):lng.
-    local targ_lng is body:geopositionof(positionat(target, guess_time)):lng.
+    local our_lng is posang(body:geopositionof(positionat(ship, guess_time)):lng).
+    local targ_lng is posang(body:geopositionof(positionat(target, guess_time)):lng).
 
     // Forward search.
     until targ_lng > our_lng {
         clearscreen.
         set guess_time to guess_time + forward_search_resolution.
         print "Checking t+" + (guess_time - time:seconds) at (0, 0).
-        set our_lng to body:geopositionof(positionat(ship, guess_time)):lng.
-        set targ_lng to body:altitudeof(positionat(ship, guess_time)):lng.
+        set targ_lng to posang(body:geopositionof(positionat(target, guess_time)):lng).
     }
 
     // Backtrack.
@@ -37,17 +40,21 @@ function overhead_time {
         clearscreen.
         set guess_time to guess_time - backtracking_resolution.
         print "Checking t+" + (guess_time - time:seconds) at (0, 0).
-        set our_lng to body:geopositionof(positionat(ship, guess_time)):lng.
-        set targ_lng to body:altitudeof(positionat(ship, guess_time)):lng.
+        set targ_lng to posang(body:geopositionof(positionat(target, guess_time)):lng).
+    }
+
+    if guess_time < time:seconds {
+        set guess_time to guess_time + target:orbit:period.
     }
 
     print "Final t+" + (guess_time - time:seconds) at (0,1).
     return guess_time.
 }
 
+clearscreen.
+
 set overhead_t to overhead_time().
 print "Print waiting another " + sec2timestr(overhead_t - time:seconds - lead_time).
 
 // Actually do the waiting
-//warpto(overhead_t - lead_time).
-//run stdasc.
+warpto(overhead_t - lead_time).
