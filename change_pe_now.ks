@@ -17,7 +17,7 @@ set twr to 0.2.
 set mu to ship:body:mu.
 set r to ship:body:radius + altitude.
 set g to mu / r^2.
-set throttle_target to max(twr * g * mass / maxthrust, 0.02).
+set throttle_target to glimited_throttle(1).
 print "Setting throttle to " + throttle_target.
 
 until (sign * periapsis) > (sign * newpe) {
