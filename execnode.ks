@@ -1,34 +1,48 @@
+// Parameters
+parameter slack is 60.
+parameter final_slack is 5.
+
 // Imports
 run once koslib.
 
+// Fixed parameters
+set stage_wait to 3.
+
 // Prepare the ship
 clearscreen.
-SAS off.
-RCS off.
 
 set node to nextnode.
-
-// point ship at node
-lock steering to lookdirup(node:deltav, facing:topvector).
 
 // figure out burn duration
 set dob to burn_time(node:deltav:mag).
 print "Estimated burn time: " + sec2timestr(dob).
 
+// warp to burn time; give some slack for final steering adjustments
+set hang to node:eta - dob / 2 - slack.
+print "Warping ahead by " + sec2timestr(hang).
+
+set twarpexit to time:seconds + hang.
+if hang > 0 {
+    set warpmode to "RAILS".
+    warpto(twarpexit).
+}
+
+
 // estimate burn direction
 set node_facing to lookdirup(node:deltav, facing:topvector).
 
-wait until vdot(facing:forevector, node_facing:forevector) >= 0.999 or node:eta <= dob / 2.
+// point ship at node
+lock steering to lookdirup(node:deltav, facing:topvector).
+wait until (vdot(facing:forevector, node_facing:forevector) >= 0.999 and ship:angularvel:mag < 0.01) or node:eta <= dob / 2.
 
-// warp to burn time; give 5 seconds slack for final steering adjustments
-set hang to (node:eta - dob / 2) - 5.
-print "Warping ahead by " + sec2timestr(hang).
-
-if hang > 0 {
-    set twarpexit to time:seconds + hang.
-    warpto(twarpexit).
-    wait until time:seconds > twarpexit + 5.
-}
+// wait to fire
+wait until time:seconds > twarpexit.
+set warpmode to "PHYSICS".
+set warp to 4.
+wait until time:seconds > twarpexit + slack - final_slack.
+set warp to 0.
+set warpmode to "RAILS".
+wait until time:seconds > twarpexit + slack.
 
 set done to false.
 set dv0 to node:deltav.
@@ -46,9 +60,11 @@ until done {
 
     // feather the throttle
     set accel to availablethrust / mass.
-    print "Requesting throttle of " + min(dvmin / accel, 1.0) at (0,15).
-    lock throttle to min(dvmin / accel, 1.0).
-
+    if accel > 0 {
+        print "Requesting throttle of " + min(dvmin / accel, 1.0) at (0,15).
+        lock throttle to min(dvmin / accel, 1.0).
+    }
+    
     // three conditions for being done:
     //   1) overshot (node delta vee is pointing opposite from initial)
     //   2) burn DV increases (off target due to wobbles)
