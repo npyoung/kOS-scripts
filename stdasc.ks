@@ -1,63 +1,34 @@
-// Parameters
-parameter compass is 90.
-parameter dump_stage is true.
+// Imports
+run once koslib.
 
 // Fixed parameters
+set stage_wait to 3.
 set min_throttle to 0.4.
 set g to 9.81.
-set glimit to 2.5.
-set turn_g to 1.75.
-set turn_start to 200.
-set turn_end to 4000.
-set turn_angle to 15.
+set glimit to 3.
+set turn_g to 1.5.
+set turn_start to 100.
+set turn_rate to 1.
+set turn_hold to 5.
 set tta_target to 60.
 set frame_swap_alt to 30000.
-set final_ap to 75000.
-set stage_wait to 3.
+set fairing_alt to 48000.
+set dump_pe to 20000.
 
 // Prepare the ship
 clearscreen.
-SAS off.
-RCS off.
 
 // Bounded throttle obeys G-limit and min_throttle
-lock max_throttle to min(1, glimit * g / (ship:availablethrust / mass)).
-lock bounded_throttle to 1.
-lock throttle to max(min_throttle, min(max_throttle, bounded_throttle)).
+lock max_throttle to glimited_throttle(glimit).
+set bounded_throttle to 1.
+lock throttle to clip(bounded_throttle, min_throttle, max_throttle).
 
 // Point up
-lock steering to HEADING(compass, 90).
 lock pitch to 90 - VANG(FACING:VECTOR, UP:VECTOR).
-
-// Autostaging logic
-function anyflameout {
-    list engines in all_engines.
-    for engine in all_engines {
-        if engine:flameout {
-            return true.
-        }
-    }
-    return false.
-}
-
-function handleflameout {
-    if maxthrust = 0 {
-        // This was the only active stage. Stage to separate,
-        // then stage again to ignite next engine.
-        print "MECO detected".
-        stage.
-        print stage_wait + "s hold until next stage ignition".
-        wait stage_wait.
-    } else {
-        // These were radially-attached stages.
-        // Just stage to separate.
-        print "BECO detected".
-    }
-    stage.
-}
+lock steering to HEADING(compass, 90) + R(0, 0, roll).
 
 // Launch
-print "LAUNCH!".
+disp("LAUNCH!").
 stage.
 when anyflameout() then {
     handleflameout().
@@ -65,32 +36,51 @@ when anyflameout() then {
 }
 
 // Limit early acceleration
-lock bounded_throttle to turn_g * (mass * g) / ship:availablethrust.
+lock max_throttle to glimited_throttle(turn_g).
 
 // Start turn
 wait until ALT:RADAR > turn_start.
-print "Forcing start of turn".
-lock steering to HEADING(compass, 90 - turn_angle * (ALT:RADAR - turn_start) / (turn_end - turn_start)).
+set turn_t to TIME:SECONDS.
+disp("Forcing start of turn").
+until pitch < 90 - turn_angle {
+    set target_angle to  (TIME:SECONDS - turn_t) * turn_rate.
+    lock steering to HEADING(compass, 90 - target_angle) + R(0, 0, roll).
+}
+
+// Stabilize the turn
+lock steering to heading(compass, 90 - turn_angle) + R(0, 0, roll).
+wait turn_hold.
 
 // Go prograde
-wait until pitch < 90 - turn_angle + 0.5.
-print "Initial turn done; holding prograde".
-lock steering to SRFPROGRADE.
+disp("Initial turn done; holding prograde").
+lock steering to SRFPROGRADE + R(0, 0, roll).
 
 // Watch for switch to orbital prograde
 when ALTITUDE > frame_swap_alt THEN {
-    lock steering to PROGRADE.
-    print "Swapping to orbital prograde".
+    lock steering to PROGRADE + R(0, 0, roll).
+    disp("Swapping to orbital prograde").
+    set ag10 to true.
+    disp("Deploying antennae (AG10)").
+}
+
+// Watch for fairing drop if staged
+when ALTITUDE > fairing_alt THEN {
+    for module in ship:modulesnamed("ModuleProceduralFairing") {
+        if module:part:stage = stage:number - 1 {
+            disp("Dumping fairing").
+            stage.
+        }
+    }
 }
 
 // Switch from TWR limiting to time-to-Ap targeting
-print "Leaving acceleration-targeting mode".
-print "Begin time-to-Ap targeting mode".
-set PID to PIDLOOP(0.02, 0.0, 0.04).
+disp("Begin time-to-Ap targeting mode").
+lock max_throttle to glimited_throttle(glimit).
+set PID to PIDLOOP(0.008, 0.0, 0.16).
 set PID:SETPOINT to tta_target.
 until APOAPSIS > final_ap {
     set bounded_throttle to throttle + PID:UPDATE(TIME:SECONDS, ETA:APOAPSIS).
-    print "throttle target is " + bounded_throttle at (0, 15).
+    print "Throttle target: " + round(bounded_throttle, 2) at (0, 1).
     wait 0.1.
 }
 lock throttle to 0.
@@ -98,27 +88,29 @@ lock throttle to 0.
 // Coast to Ap
 set warpmode to "PHYSICS".
 set warp to 4.
-print "Coasting to Ap".
+disp("Coasting to Ap").
 wait until ALTITUDE > body:atm:height.
 set warpmode to "RAILS".
 set warp to 0.
 
 // Dump ascent stage if necessary
-// Double check that this stage really is almost empty
-set resource_lex to stage:resourceslex.
-set lfuel to resource_lex["LiquidFuel"].
-if dump_stage and lfuel:amount < 0.3 * lfuel:capacity {
-    when periapsis > 50000 then {
-        print "Dumping ascent stage".
-        stage.
-        wait until stage:ready.
-        until availablethrust > 0 {
+when periapsis > dump_pe then {
+    // Double check that this stage really is almost empty
+    set resource_lex to stage:resourceslex.
+    if resource_lex:haskey("LiquidFuel") {
+        set lfuel to resource_lex["LiquidFuel"].
+        if dump_stage and lfuel:amount < 0.15 * lfuel:capacity {
+            disp("Dumping ascent stage").
             stage.
             wait until stage:ready.
+            until availablethrust > 0 {
+                stage.
+                wait until stage:ready.
+            }
+        } else {
+            disp("Holding onto ascent stage").
         }
     }
-} else {
-    print "Holding onto ascent stage".
 }
 
 // Circularize
