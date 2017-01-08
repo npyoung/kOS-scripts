@@ -1,5 +1,5 @@
 // Parameters
-parameter end_hv is 20.
+parameter end_hv is 50.
 
 // Imports
 run once koslib.
@@ -22,7 +22,7 @@ print "Compass detected: " + compass.
 lock steering to heading(compass, pitch).
 
 // Throttle to full.
-set throttle_target to 1.
+set throttle_target to glimited_throttle(2).
 
 // If vertical speed rises, pitch down
 // If vertical speed falls, pitch up
@@ -38,6 +38,3 @@ until ship:groundspeed < end_hv {
     wait 0.1.
 }
 set throttle_target to 0.
-
-run suicideburn(100, 0).
-run hoverthrust(-16).

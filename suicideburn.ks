@@ -3,7 +3,7 @@
 // hang time added by the burn, or deceleration during the burn.
 
 // Parameters
-parameter margin is 2.
+parameter margin is 100.
 parameter finalv is 0.
 
 // Imports
@@ -13,6 +13,7 @@ run once koslib.
 set forward_search_resolution to 5.
 set backtracking_resolution to 0.1.
 set craft_height to craft_height().
+set glimit to 3.
 
 // Set up ship
 clearscreen.
@@ -51,12 +52,12 @@ function impact_time {
 
 // How fast will we be going at impact time? Account for final velocity here.
 set impact_t to impact_time(margin).
-set burn_dv to velocityat(ship, impact_t):surface:mag - finalv.
-print "Burn dv: " + burn_dv.
+set burn_dv to velocityat(ship, impact_t):surface:mag + finalv.
+disp("Burn dv: " + burn_dv).
 
 // When should we begin suicide burn?
-set burn_t to burn_time(burn_dv).
-print "Burn duration: " + burn_t.
+set burn_t to burn_time(burn_dv, min(glimit * 9.81 * ship:mass, ship:availablethrust)).
+disp("Burn duration: " + burn_t).
 set burn_start to impact_t - burn_t.
 
 // Wait until suicide burn time
@@ -67,6 +68,7 @@ until time:seconds > burn_start {
 }
 
 // Burn until final velocity reached.
-set throttle_target to 1.
-wait until verticalspeed > finalv.
-set throttle_target to 0.
+set throttle_target to glimited_throttle(glimit).
+wait until verticalspeed >= finalv.
+disp("Killing throttle").
+lock throttle to 0.
