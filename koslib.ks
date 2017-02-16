@@ -222,7 +222,7 @@ function burn_time {
 }
 
 // Assuming only one type of ignited engine, gets current ISP.
-// TODO: Can handle RCS thrust, if all RCS thruster incuded.
+// TODO: Can handle RCS thrust, if all RCS thruster included.
 function available_isp {
     list engines in all_engines.
     for engine in all_engines {

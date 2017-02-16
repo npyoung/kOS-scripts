@@ -1,2 +1,4 @@
 # gedit temp files
 *~
+*.pyc
+*__pycache__
