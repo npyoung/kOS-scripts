@@ -7,13 +7,12 @@ run once koslib.
 
 // Autostaging logic
 when anyflameout() then {
-    handleflameout().
-    return true.
+    return handleflameout().
 }
 
 // Launch and limit max G-force (G on Kerbin)
-lock throttle to glimited_throttle(2).
-print "LAUNCH!".
+lock throttle to glimited_throttle(3.5).
+disp("LAUNCH!").
 
 // Max G throttle straight up until Ap > 200
 wait until apoapsis > 200.
