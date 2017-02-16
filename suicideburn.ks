@@ -53,15 +53,15 @@ function impact_time {
 // How fast will we be going at impact time? Account for final velocity here.
 set impact_t to impact_time(margin).
 set burn_dv to velocityat(ship, impact_t):surface:mag + finalv.
-disp("Burn dv: " + burn_dv).
+disp("Burn dv: " + round(burn_dv, 1)).
 
 // When should we begin suicide burn?
-set burn_t to burn_time(burn_dv, min(glimit * 9.81 * ship:mass, ship:availablethrust)).
-disp("Burn duration: " + burn_t).
-set burn_start to impact_t - burn_t.
+set burn_t to burn_time(burn_dv).
+disp("Burn duration: " + round(burn_t, 1) + "s").
+set burn_start to impact_t - burn_t / 1.5.
 
 // Wait until suicide burn time
-lock steering to srfretrograde.
+lock steering to srfretrograde + R(0, 0, 180).
 until time:seconds > burn_start {
     clearscreen.
     print "Burning in: " + sec2timestr(burn_start - time:seconds) at (0, 0).
