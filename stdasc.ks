@@ -1,25 +1,31 @@
+// Parameters
+parameter final_ap is 75000.
+parameter compass is 90.
+
 // Imports
 run once koslib.
 
 // Fixed parameters
+set roll to 180.
 set stage_wait to 3.
 set min_throttle to 0.4.
 set g to 9.81.
-set glimit to 3.
-set turn_g to 1.5.
+set glimit to 2.5.
+set turn_g to 1.65.
 set turn_start to 100.
 set turn_rate to 1.
 set turn_hold to 5.
 set tta_target to 60.
-set frame_swap_alt to 30000.
-set fairing_alt to 48000.
+set dense_atm_alt to 7000.
+set lower_atm_alt to 30000.
+set fairing_alt to 40000.
 set dump_pe to 20000.
 
 // Prepare the ship
 clearscreen.
 
 // Bounded throttle obeys G-limit and min_throttle
-lock max_throttle to glimited_throttle(glimit).
+lock max_throttle to glimited_throttle(turn_g).
 set bounded_throttle to 1.
 lock throttle to clip(bounded_throttle, min_throttle, max_throttle).
 
@@ -30,13 +36,16 @@ lock steering to HEADING(compass, 90) + R(0, 0, roll).
 // Launch
 disp("LAUNCH!").
 stage.
+set advfohandling to true.
 when anyflameout() then {
-    handleflameout().
-    return true.
+    return advfohandling and handleflameout().
 }
 
-// Limit early acceleration
-lock max_throttle to glimited_throttle(turn_g).
+// Use TWR to guess good turn angle
+set twr to min(get_twr(), turn_g).
+set turn_angle to (6 - 1.25) / (1.7 - 1.3) * (twr - 1.3) + 1.25.
+disp("TWR is " + round(twr, 2)).
+disp("Choosing " + round(turn_angle, 2) + " degree turn angle").
 
 // Start turn
 wait until ALT:RADAR > turn_start.
@@ -55,12 +64,16 @@ wait turn_hold.
 disp("Initial turn done; holding prograde").
 lock steering to SRFPROGRADE + R(0, 0, roll).
 
+// Watch for thinner atmosphere
+when altitude > dense_atm_alt then {
+    lock max_throttle to glimited_throttle(glimit).
+    disp("Increasing g-limit").
+}
+
 // Watch for switch to orbital prograde
-when ALTITUDE > frame_swap_alt THEN {
+when ALTITUDE > lower_atm_alt THEN {
     lock steering to PROGRADE + R(0, 0, roll).
     disp("Swapping to orbital prograde").
-    set ag10 to true.
-    disp("Deploying antennae (AG10)").
 }
 
 // Watch for fairing drop if staged
@@ -71,11 +84,14 @@ when ALTITUDE > fairing_alt THEN {
             stage.
         }
     }
+    wait until stage:ready.
+    rcs on.
+    set ag10 to true.
+    disp("Deploying antennae (AG10)").
 }
 
 // Switch from TWR limiting to time-to-Ap targeting
 disp("Begin time-to-Ap targeting mode").
-lock max_throttle to glimited_throttle(glimit).
 set PID to PIDLOOP(0.008, 0.0, 0.16).
 set PID:SETPOINT to tta_target.
 until APOAPSIS > final_ap {
@@ -101,12 +117,7 @@ when periapsis > dump_pe then {
         set lfuel to resource_lex["LiquidFuel"].
         if dump_stage and lfuel:amount < 0.15 * lfuel:capacity {
             disp("Dumping ascent stage").
-            stage.
-            wait until stage:ready.
-            until availablethrust > 0 {
-                stage.
-                wait until stage:ready.
-            }
+            killengines().
         } else {
             disp("Holding onto ascent stage").
         }
@@ -115,4 +126,5 @@ when periapsis > dump_pe then {
 
 // Circularize
 run change_pe_at_ap(APOAPSIS).
+set advfohandling to false.
 run execnode.

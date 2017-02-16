@@ -2,6 +2,18 @@
 // These are generally informational and convenience functions. They can stage,
 // but generally don't point or throttle.
 
+function angdiff {
+    parameter src.
+    parameter tgt.
+    set a to tgt - src.
+    set a to mod(a + 180, 360) - 180.
+    return a.
+}
+
+function term {
+    core:part:getmodule("kOSProcessor"):doevent("Open Terminal").
+}
+
 function str {
     parameter param_in.
 
@@ -62,37 +74,63 @@ function closest_approach_eta {
     return btls(distance_at_t@, start, 10, 0.1) - start.
 }
 
+function normang {
+    parameter a.
+    set a to posang(a).
+    if a > 180 {
+        set a to a - 360.
+    }
+    return a.
+}
+
+function posang {
+    parameter a.
+    return mod(a + 360, 360).
+}
+
+function pos {
+    parameter x.
+    return max(0, x).
+}
+
+function neg {
+    parameter x.
+    return min(0, x).
+}
+
 // Minimize a 1D pseudoconvex function via backtracking line search
 function btls {
     parameter objective.
     parameter guess.
     parameter forward_step.
     parameter backward_step.
+    parameter line is 0.
 
     local last is objective(guess).
     local now is last.
 
     // Forward search
+    print "Forward search:" at (0, line).
     until now > last {
         set last to now.
         set guess to guess + forward_step.
         set now to objective(guess).
-        clearscreen.
-        print "Guess is " + guess at (0, 0).
+        print "Guessing " + round(guess, 2) at (0, line + 1).
+        print "Obj is " + round(now, 2) at (0, line + 2).
     }
 
     // Backtrack.
+    print "Backward search:" at (0, line + 3).
     set last to now.
 
     until now > last {
         set last to now.
         set guess to guess - backward_step.
         set now to objective(guess).
-        clearscreen.
-        print "Guess is " + guess at (0, 0).
+        print "Guessing " + round(guess, 2) at (0, line + 4).
+        print "Obj is " + round(now, 2) at (0, line + 5).
     }
 
-    print "Final is " + guess at (0, 1).
     return guess.
 }
 
@@ -112,7 +150,7 @@ function glimited_throttle {
     list engines in engs.
     for eng in engs {
         if eng:ignition {
-            if eng:allowrestart {
+            if eng:allowshutdown {
                 set float_tr to float_tr + eng:availablethrust.
             } else {
                 set fixed_tr to fixed_tr + eng:availablethrust.
@@ -120,7 +158,7 @@ function glimited_throttle {
         }
     }
 
-    if fixed_tr + float_tr > 0 {
+    if float_tr > 0 {
         return clip((glimit * g * ship:mass - fixed_tr) / float_tr, 0, 1).
     } else {
         return 1.
@@ -167,13 +205,14 @@ function clip {
     parameter v. // value
     parameter a. // low
     parameter b. // high
-    return min(max(v, a), b).
+    return max(min(v, b), a).
 }
 
 // Determines the precise burn duration for a given dV.
 function burn_time {
     parameter dv.
-    parameter f is ship:availablethrust.
+    parameter thrust is ship:availablethrust.
+    local f is thrust.
     local m is ship:mass.
     local e is constant:e.
     local i is available_isp().
@@ -183,11 +222,27 @@ function burn_time {
 }
 
 // Assuming only one type of ignited engine, gets current ISP.
+// TODO: Can handle RCS thrust, if all RCS thruster incuded.
 function available_isp {
     list engines in all_engines.
     for engine in all_engines {
         if engine:ignition {
             return engine:ISP.
+        }
+    }
+
+    //list ship:modulesnamed("moduleRCSFX") in all_rcs.
+    //for rcs_module in all_rcs {
+    //    set rcs_part to rcs_module:part.
+    //}
+}
+
+// Kill all ignited engine
+function killengines {
+    list engines in all_engines.
+    for engine in all_engines {
+        if engine:ignition {
+            engine:shutdown().
         }
     }
 }
@@ -208,27 +263,28 @@ function handleflameout {
     if maxthrust = 0 {
         disp("MECO detected").
         disp("Coasting for " + stage_coast + "s").
-        local t0 is time:seconds.
-        when time:seconds > stage_coast + t0 then {
-            stage.
-            if maxthrust = 0 {
-                disp(stage_wait + "s hold to clear debris").
-                wait stage_wait.
+        set t0 to time:seconds.
+        on time:seconds {
+            print sec2timestr(time:seconds - t0) at (0, 2).
+            if time:seconds > stage_coast + t0 {
                 stage.
+                disp(stage_wait + "s hold to clear debris").
+                set t0 to time:seconds.
+                when time:seconds > stage_wait + t0 then {
+                    stage.
+                    when anyflameout() then {
+                        return handleflameout().
+                    }
+                }
+                return false.
             }
+            return true.
         }
+    // If there are still engines running just decouple immediately.
     } else {
         disp("BECO detected").
-    }
-    stage.
-    wait until stage:ready.
-    // If there are still no engines running
-    // Decoupling and relighting are separate.
-    // Wait to clear dropped stage, then firing up next stage.
-    if maxthrust = 0 {
-        disp(stage_wait + "s hold to clear debris").
-        wait stage_wait.
         stage.
+        return true.
     }
 }
 

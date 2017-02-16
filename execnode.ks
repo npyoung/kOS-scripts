@@ -1,16 +1,17 @@
 // Parameters
-parameter slack is 60.
-parameter final_slack is 5.
+parameter slack is 30.
+
 
 // Imports
 run once koslib.
 
 // Fixed parameters
+set final_slack to 5.
 set stage_wait to 3.
 
 // Prepare the ship
 clearscreen.
-
+sas off.
 set node to nextnode.
 
 // figure out burn duration
@@ -47,10 +48,22 @@ wait until time:seconds > twarpexit + slack.
 set done to false.
 set dv0 to node:deltav.
 set dvmin to dv0:mag.
+set th to 0.
+lock throttle to th.
 
 when availablethrust = 0 then {
     stage.
+    set t0 to time:seconds.
     wait until stage:ready.
+    if availablethrust = 0 {
+        on time:seconds {
+            if time:seconds > t0 + stage_wait {
+                stage.
+                return false.
+            }
+            return true.
+        }
+    }
 }
 
 until done {
@@ -60,11 +73,11 @@ until done {
 
     // feather the throttle
     set accel to availablethrust / mass.
-    if accel > 0 {
-        print "Requesting throttle of " + min(dvmin / accel, 1.0) at (0,15).
-        lock throttle to min(dvmin / accel, 1.0).
+    if accel > 0 and mass > 0 {
+        set th to clip(dvmin / accel, 0, 1.0).
+        print "Requesting throttle of " + round(th, 1) at (0,15).
     }
-    
+
     // three conditions for being done:
     //   1) overshot (node delta vee is pointing opposite from initial)
     //   2) burn DV increases (off target due to wobbles)
