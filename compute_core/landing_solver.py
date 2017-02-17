@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 import json
 import pyinotify
@@ -7,30 +7,45 @@ from gfold import GFOLDSolver
 
 state_fname = 'state.json'
 trajectory_fname = 'trajectory.json'
-sim_dt = 1.
+sim_dt = 0.5
 spline_dt = 1./30
 
 class INotifyHandler(pyinotify.ProcessEvent):
     def process_IN_CLOSE_WRITE(self, evt):
-        print("State file '{}' modified".format(evt.pathname))
+        print("State file '{}' modified".format(state_fname))
         with open(state_fname, 'r') as f:
-            state = json.load(f)
+            raw = json.load(f)
+        state = kos_to_numpy(raw)
+        print("Solving with state:")
+        print(state)
         x, v, u, z, t = solve_trajectory(**state)
         save_trajectory(x, v, u, t)
         plot_trajectory(x, v, u, z, t)
 
 
+def kos_to_numpy(json_data):
+    lex_items = json_data["entries"]
+    out = {}
+    for i in range(0, len(lex_items), 2):
+        j = i + 1
+        key = lex_items[i]
+        val = lex_items[j]
+        if isinstance(val, dict):
+            val = np.array([val["x"], val["y"], val["z"]])
+        out[key] = val
+    return out
+
 def resample(x, dt_from, dt_to):
     from scipy.interpolate import interp1d
 
     t0 = np.arange(0, x.shape[0]) * dt_from
-    t1 = np.arange(0, t0[-1]) * dt_to
+    t1 = np.arange(0, t0[-1], dt_to)
     interpolator = interp1d(t0, x, kind=1, axis=0, assume_sorted=True)
     return t1, interpolator(t1)
 
 def solve_trajectory(position, velocity, mdry, mwet, Isp, Tmax, g):
     ppts = GFOLDSolver(position, velocity, mdry, mwet, Isp, Tmax,
-                       g, glide_slope=75, max_angle=15,
+                       g, vmax=30, glide_slope=88, max_angle=15,
                        vert_time=5, dt=sim_dt)
     ppts.best_trajectory()
 
@@ -41,15 +56,36 @@ def solve_trajectory(position, velocity, mdry, mwet, Isp, Tmax, g):
 
     return x, v, u, z, t
 
+def np_to_vec(arr):
+    if arr.ndim != 1 or len(arr) != 3:
+        raise ValueError("array must be 1D with length 3 to be a kOS vector")
+    out = {}
+    out["x"], out["y"], out["z"] = arr.tolist()
+    out["$type"] = "kOS.Suffixed.Vector"
+    return out
+
 def save_trajectory(x, v, u, t):
+    out = {"items": [], "$type": "kOS.Safe.Encapsulation.ListValue"}
+    N = len(t)
+    for i in range(N):
+        d = {"entries":[], "$type": "kOS.Safe.Encapsulation.Lexicon"}
+
+        d["entries"].append("t")
+        d["entries"].append(t[i])
+
+        d["entries"].append("x")
+        d["entries"].append(np_to_vec(x[i,:]))
+
+        d["entries"].append("v")
+        d["entries"].append(np_to_vec(v[i,:]))
+
+        d["entries"].append("u")
+        d["entries"].append(np_to_vec(u[i,:]))
+
+        out["items"].append(d)
+
     with open(trajectory_fname, 'w') as f:
-        json.dump({'t': t.tolist(),
-                   'x': x.tolist(),
-                   'v': v.tolist(),
-                   'u': u.tolist()},
-                  f,
-                  separators=(',', ':'),
-                  indent=4)
+        json.dump(out, f, indent=4)
 
 def plot_trajectory(x, v, u, z, t):
     import matplotlib.pyplot as plt
@@ -86,7 +122,7 @@ def plot_trajectory(x, v, u, z, t):
     ax[5].set_xlabel("Time (s)")
 
     plt.tight_layout()
-    plt.show(block=False)
+    plt.show()
 
 def main():
     watchman = pyinotify.WatchManager()

@@ -7,7 +7,7 @@ eps = 1e-8
 
 class GFOLDSolver:
     def __init__(self, x0, v0, mdry, mwet, Isp, Tmax, g,
-                 glide_slope=None, max_angle=None, vert_time=None, dt=0.5):
+                 vmax=None, glide_slope=None, max_angle=None, vert_time=None, dt=0.5):
         self.x0 = np.atleast_2d(x0)
         self.v0 = np.atleast_2d(v0)
         self.xf = np.zeros((1, 3))
@@ -23,22 +23,29 @@ class GFOLDSolver:
             self.mdry = mdry
             self.mwet = mwet
 
-        if g < 0:
+        if g > 0:
             warnings.warn("Gravity points up? Flipping sign of g")
-            self.g = -g
+            self.g = np.array([[0, 0, -g]])
         else:
-            self.g = g
+            self.g = np.array([[0, 0, g]])
 
-        gs0 = 90 - np.arctan2(x0[0,2] , np.sqrt(np.sum(x0[0,:2]**2))) * 180 / np.pi
-        if glide_slope < 15 or glide_slope > 90:
+        if vmax is None or vmax > 0:
+            self.vmax = vmax
+        else:
+            raise ValueError("Vmax cannot be <= 0")
+
+        gs0 = 90 - np.arctan(x0[2] / np.sqrt(np.sum(x0[:2]**2))) * 180 / np.pi
+        if glide_slope == None:
+            self.glide_slope = glide_slope
+        elif glide_slope < 15 or glide_slope > 90:
             raise ValueError("Glide slope must be between 15 and 90 degrees")
         elif glide_slope < gs0:
             warnings.warn("Initial position violates glide slope constraint ({:0.2f} < {:0.2f}). Correcting.".format(glide_slope, gs0))
-            self.glide_slope = min(90, gs0 + 5)
+            self.glide_slope = min(90, gs0 + eps)
         else:
             self.glide_slope = glide_slope
 
-        if (not vert_time > 0) and max_angle:
+        if (vert_time is None or not vert_time > 0) and max_angle:
             warnings.warn("max_angle given, but vert_time not > 0")
             self.max_angle = None
             self.vert_time = None
@@ -81,6 +88,9 @@ class GFOLDSolver:
                             z[i] <= np.log(self.mwet),
                             norm2(u[i,:]) <= self.Tmax * self._emz0(i*self.dt) * (1-(z[i]-self._z0(i*self.dt))),
                            ]
+        if self.vmax:
+            for i in range(N-1):
+                constraints += [norm2(v[i,:]) <= self.vmax]
 
         if self.glide_slope:
             for i in range(N-1):
@@ -98,10 +108,10 @@ class GFOLDSolver:
 
     def best_trajectory(self, coarse_res=10, fine_res=2):
         t_min = self.mdry * np.linalg.norm(self.v0, 2) / self.Tmax
-        N_min = int(t_min / dt) + 1
+        N_min = int(t_min / self.dt) + 1
 
-        forward_step = int(coarse_res / dt)
-        backward_step = int(fine_res / dt)
+        forward_step = int(coarse_res / self.dt)
+        backward_step = int(fine_res / self.dt)
 
         obj = np.inf
         N = N_min
