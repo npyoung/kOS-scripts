@@ -6,9 +6,11 @@ set trajectory_path to "0:/compute_core/trajectory.json".
 set state_path to "0:/compute_core/state.json".
 set nominal_max_thrust to 0.8.
 set compute_time to 10.
-set Kp to 0.05.
-set Kd to 0.10.
+set Kp to 0.1.
+set Kd to 0.5.
 set accel_deadband to 0.2.
+set physics_tick to 1/10.
+set debug to false.
 
 // Set up ship
 sas off.
@@ -29,12 +31,6 @@ if exists(trajectory_path) {
     disp("Removing old trajectory file").
     deletepath(trajectory_path).
 }
-
-// Display vectors
-set traj_arrow to vecdraw().
-set traj_arrow:show to true.
-set true_arrow to vecdraw().
-set true_arrow:show to true.
 
 // Write state
 disp("Sending state information to the compute unit").
@@ -71,37 +67,48 @@ set trajectory to readjson(trajectory_path).
 disp("Preparing to follow trajectory in " + round(t0 - time:seconds, 1) + " seconds").
 
 // Follow trajectory
-lock x_true to xyz2enu(ship:position - target:position).
-lock v_true to xyz2enu(ship:velocity:surface).
 for timept in trajectory {
     set t to timept["t"].
-    set x to timept["x"].
-    set v to timept["v"].
-    set u to timept["u"].
+    set x to enu2xyz(timept["x"]).
+    set v to enu2xyz(timept["v"]).
+    set u to enu2xyz(timept["u"]).
 
-    wait until time:seconds - t0 >= t.
+    set x_true to pos - target:position.
+    set v_true to ship:velocity:surface.
+
+    if time:seconds - t0 + physics_tick < t {
+        wait until time:seconds - t0 >= t.
+    }
 
     set u_c to Kp * (x - x_true) + Kd * (v - v_true).
     set u_tot to u + u_c.
 
     lock throttle to u_tot:mag * ship:mass / ship:availablethrust.
     if u_tot:mag > accel_deadband {
-        lock steering to enu2xyz(u_tot):direction.
+        lock steering to u_tot:direction.
     }
-
-    set traj_arrow:start to enu2xyz(x - x_true).
-    set traj_arrow:vec to traj_arrow:start + enu2xyz(v).
-    set true_arrow:vec to ship:velocity:surface.
 
     clearscreen.
     print "Lagging by:" at (0, 0).
     print round(time:seconds - t0 - t, 2) + "s" at (25, 0).
-    //print "Planned acceleration:" at (0, 1).
-    //print round(u:mag, 1) + "m/s^2" at (25, 1).
-    //print "Correction acceleration:" at (0, 2).
-    //print round(u_c:mag, 1) + "m/s^2" at (25, 2).
-    //print "Directional error:" at (0, 3).
-    //print round(vang(u_tot, xyz2enu(ship:facing:vector)), 1) + "deg" at (25, 3).
+
+    print "x_err:" at (0, 1).
+    set x_err to xyz2enu(x_true - x).
+    print round(x_err:x, 1) at (25, 1).
+    print round(x_err:y, 1) at (35, 1).
+    print round(x_err:z, 1) at (45, 1).
+
+    if debug {
+        print "v_err:" at (0, 2).
+        set v_err to xyz2enu(v_true - v).
+        print round(v_err:x, 1) at (25, 2).
+        print round(v_err:y, 1) at (35, 2).
+        print round(v_err:z, 1) at (45, 2).
+
+        print "Directional error:" at (0, 3).
+        set ang to vang(u_tot, ship:facing:vector), 1)
+        print round(ang, 1) + "deg" at (25, 3).
+    }
 }
 
 // Any remaining distance

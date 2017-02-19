@@ -7,8 +7,8 @@ from gfold import GFOLDSolver
 
 state_fname = 'state.json'
 trajectory_fname = 'trajectory.json'
-sim_dt = 0.5
-spline_dt = 1./4
+sim_dt = 0.25
+spline_dt = 1./10
 
 class INotifyHandler(pyinotify.ProcessEvent):
     def process_IN_CLOSE_WRITE(self, evt):
