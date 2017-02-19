@@ -34,14 +34,14 @@ class GFOLDSolver:
         else:
             raise ValueError("Vmax cannot be <= 0")
 
-        gs0 = 90 - np.arctan(x0[2] / np.sqrt(np.sum(x0[:2]**2))) * 180 / np.pi
+        gs0 = 90 - np.arctan(np.abs(x0[2]) / np.sqrt(np.sum(x0[:2]**2))) * 180 / np.pi
         if glide_slope == None:
             self.glide_slope = glide_slope
         elif glide_slope < 15 or glide_slope > 90:
             raise ValueError("Glide slope must be between 15 and 90 degrees")
         elif glide_slope < gs0:
             warnings.warn("Initial position violates glide slope constraint ({:0.2f} < {:0.2f}). Correcting.".format(glide_slope, gs0))
-            self.glide_slope = min(90, gs0 + eps)
+            self.glide_slope = min(90, gs0 + 0.1)
         else:
             self.glide_slope = glide_slope
 
@@ -67,6 +67,9 @@ class GFOLDSolver:
         x = Variable(rows=N, cols=3, name='position')
         v = Variable(rows=N, cols=3, name='velocity')
         z = Variable(rows=N, name='log(mass)')
+        dt = self.dt
+        g = self.g
+        alpha = self.alpha
 
         obj = Minimize(norm1(u))
 
@@ -81,12 +84,12 @@ class GFOLDSolver:
         ]
 
         for i in range(N-1):
-            constraints += [x[i+1,:] == v[i,:] * self.dt + x[i,:],
-                            v[i+1,:] == (u[i,:] + self.g) * self.dt + v[i,:],
-                            z[i+1] <=  -self.alpha * norm2(u[i,:]) * self.dt + z[i],
-                            self._z0(i*self.dt) <= z[i],
+            constraints += [v[i+1,:] == v[i,:] + dt * g + (dt/2)*(u[i,:] + u[i+1,:]),
+                            x[i+1,:] == x[i,:] + (dt/2)*(v[i,:] + v[i+1,:]) + (dt**2/12)*(u[i+1,:] - u[i,:]),
+                            z[i+1] <= z[i] - alpha*(dt)*(norm2(u[i,:])),
+                            self._z0(i*dt) <= z[i],
                             z[i] <= np.log(self.mwet),
-                            norm2(u[i,:]) <= self.Tmax * self._emz0(i*self.dt) * (1-(z[i]-self._z0(i*self.dt))),
+                            norm2(u[i,:]) <= self.Tmax * self._emz0(i*dt) * (1-(z[i]-self._z0(i*dt))),
                            ]
         if self.vmax:
             for i in range(N-1):
