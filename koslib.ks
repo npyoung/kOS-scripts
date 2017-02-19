@@ -10,6 +10,48 @@ function angdiff {
     return a.
 }
 
+function xyz2enu {
+    parameter vin.
+
+    // Rotation angles for rotation matrix:
+    set a to latitude.
+    set CosA to cos(a).
+    set SinA to sin(a).
+
+    set b to -up:yaw.  // use UP:yaw like it was longitude
+    set CosB to cos(b).
+    set SinB to sin(b).
+
+    // The rotation matrix around z axis (latitude) then y axis (longitude):
+    set vout to V(0, 0, 0).
+    set vout:x to -vin:x*CosB      + 0          + -vin:z*SinB     .
+    set vout:y to vin:x*SinA*SinB  + vin:y*CosA + -vin:z*SinA*CosB.
+    set vout:z to -vin:x*CosA*SinB + vin:y*SinA + vin:z*CosA*CosB .
+
+    return vout.
+}
+
+function enu2xyz {
+    parameter vin.
+
+    // Rotation angles for rotation matrix:
+    set a to latitude.
+    set CosA to cos(a).
+    set SinA to sin(a).
+
+    set b to -up:yaw.  // use UP:yaw like it was longitude
+    set CosB to cos(b).
+    set SinB to sin(b).
+
+    // The rotation matrix around z axis (latitude) then y axis (longitude):
+    set vout to V(0, 0, 0).
+    set vout:x to -vin:x*CosB + vin:y*SinA*SinB  + -vin:z*CosA*SinB.
+    set vout:y to 0           + vin:y*CosA       + vin:z*SinA      .
+    set vout:z to -vin:x*SinB + -vin:y*SinA*CosB + vin:z*CosA*CosB .
+
+    return vout.
+}
+
 function term {
     core:part:getmodule("kOSProcessor"):doevent("Open Terminal").
 }

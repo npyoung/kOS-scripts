@@ -8,20 +8,23 @@ from gfold import GFOLDSolver
 state_fname = 'state.json'
 trajectory_fname = 'trajectory.json'
 sim_dt = 0.5
-spline_dt = 1./30
+spline_dt = 1./4
 
 class INotifyHandler(pyinotify.ProcessEvent):
     def process_IN_CLOSE_WRITE(self, evt):
         print("State file '{}' modified".format(state_fname))
-        with open(state_fname, 'r') as f:
-            raw = json.load(f)
-        state = kos_to_numpy(raw)
-        print("Solving with state:")
-        print(state)
-        x, v, u, z, t = solve_trajectory(**state)
-        save_trajectory(x, v, u, t)
-        plot_trajectory(x, v, u, z, t)
+        respond_to_state()
 
+
+def respond_to_state():
+    with open(state_fname, 'r') as f:
+        raw = json.load(f)
+    state = kos_to_numpy(raw)
+    print("Solving with state:")
+    print(state)
+    x, v, u, z, t = solve_trajectory(**state)
+    save_trajectory(x, v, u, t)
+    plot_trajectory(x, v, u, z, t)
 
 def kos_to_numpy(json_data):
     lex_items = json_data["entries"]
@@ -45,7 +48,7 @@ def resample(x, dt_from, dt_to):
 
 def solve_trajectory(position, velocity, mdry, mwet, Isp, Tmax, g):
     ppts = GFOLDSolver(position, velocity, mdry, mwet, Isp, Tmax,
-                       g, vmax=30, glide_slope=88, max_angle=15,
+                       g, vmax=30, glide_slope=89, max_angle=15,
                        vert_time=5, dt=sim_dt)
     ppts.best_trajectory()
 
@@ -87,21 +90,39 @@ def save_trajectory(x, v, u, t):
     with open(trajectory_fname, 'w') as f:
         json.dump(out, f, indent=4)
 
+def dist(x, axis=-1):
+    return np.sqrt(np.sum(np.square(x), axis))
+
 def plot_trajectory(x, v, u, z, t):
     import matplotlib.pyplot as plt
     import seaborn as sns
 
-    fig, ax = plt.subplots(6, 1, figsize=(8, 10))
+    plt.ion()
+    fig = plt.gcf()
 
-    ax[0].plot(x[:,0], x[:,2])
-    ax[0].plot(x[:,0], np.abs(x[:,0]) * np.tan((90 - 75) / 180 * np.pi), ls='--')
+    if len(fig.axes) == 0:
+        fig, ax = plt.subplots(6, 1, figsize=(8, 10))
+    else:
+        ax = fig.axes
+        for a in ax:
+            a.clear()
+
+    xlat = dist(x[:,:2])
+    xvert = x[:,2]
+
+    ulat = dist(u[:,:2])
+    uvert = u[:,2]
+
+    ax[0].plot(xlat, xvert)
+    ax[0].plot(xlat, xlat * np.tan((90 - 89) / 180 * np.pi), ls='--')
+    ax[0].invert_xaxis()
     ax[0].set_ylim(bottom=0)
     ax[0].legend(["Position", "Glide slope constraint"])
     ax[0].set_xlabel("Horizontal displacement")
     ax[0].set_ylabel("Altitude")
 
-    ax[1].plot(t, np.arctan2(u[:,0], u[:,2]) * 180 / np.pi)
-    ax[1].set_ylim([-90, 90])
+    ax[1].plot(t, 90 - np.arctan2(uvert, ulat) * 180 / np.pi)
+    ax[1].set_ylim([-45, 45])
     ax[1].legend(["Angle from vertical"])
     ax[1].set_ylabel("Angle (deg)")
 
@@ -123,6 +144,7 @@ def plot_trajectory(x, v, u, z, t):
 
     plt.tight_layout()
     plt.show()
+    plt.pause(0.01)
 
 def main():
     watchman = pyinotify.WatchManager()
