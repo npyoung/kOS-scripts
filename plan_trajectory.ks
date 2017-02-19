@@ -9,7 +9,7 @@ set compute_time to 10.
 set Kp to 0.1.
 set Kd to 0.5.
 set accel_deadband to 0.2.
-set physics_tick to 1/10.
+set physics_tick to 1/25.
 set debug to false.
 
 // Set up ship
@@ -76,8 +76,8 @@ for timept in trajectory {
     set x_true to pos - target:position.
     set v_true to ship:velocity:surface.
 
-    if time:seconds - t0 + physics_tick < t {
-        wait until time:seconds - t0 >= t.
+    if time:seconds - t0 + 2 * physics_tick < t {
+        wait until time:seconds - t0 + physics_tick >= t.
     }
 
     set u_c to Kp * (x - x_true) + Kd * (v - v_true).

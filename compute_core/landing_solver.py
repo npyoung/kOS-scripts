@@ -7,7 +7,7 @@ from gfold import GFOLDSolver
 
 state_fname = 'state.json'
 trajectory_fname = 'trajectory.json'
-sim_dt = 0.25
+sim_dt = 1./4
 spline_dt = 1./10
 
 class INotifyHandler(pyinotify.ProcessEvent):
